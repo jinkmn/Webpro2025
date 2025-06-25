@@ -30,17 +30,24 @@ app.get("/", async (req, res) => {
 
 // '/users' というURLに、フォームからデータが送られてきたとき(POST)の処理
 app.post("/users", async (req, res) => {
-  // フォームの 'name' という入力欄から、送信された名前を取得する
-  const name = req.body.name;
+  const name = req.body.name; // フォームから送信された名前を取得
+  const age = Number(req.body.age); // フォームから送信された年齢を取得し、数値に変換する
+
+  // もし年齢が数値でなかった場合のエラー処理
+  if (isNaN(age)) {
+    console.error("年齢は数値でなければなりません。");
+    // 400 Bad Request というステータスコードと共に、エラーメッセージを返す
+    res.status(400).send("年齢は数値でなければなりません。");
+    return; // ここで処理を中断する
+  }
+
   if (name) {
-    // もし名前がちゃんと入力されていたら、データベースに新しいユーザーとして追加する
     const newUser = await prisma.user.create({
-      data: { name },
+      data: { name, age }, // 名前と年齢の両方を保存するように変更
     });
     console.log("新しいユーザーを追加しました:", newUser);
   }
-  // 処理が終わったら、トップページ('/')にリダイレクト（自動でページを移動）させる
-  res.redirect("/");
+  res.redirect("/"); // ユーザー追加後、一覧ページにリダイレクト
 });
 
 // 設定したポート番号でサーバーを起動する
