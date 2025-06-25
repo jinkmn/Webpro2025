@@ -1,46 +1,49 @@
-// Prismaが自動生成した、データベースを操作するためのクライアントをインポートする。
-// ./generated/prisma/client という場所にあることを覚えておくと良いぞ。
+import express from "express";
+// 生成した Prisma Client をインポートする
 import { PrismaClient } from "./generated/prisma/client";
 
-// PrismaClientのインスタンスを作成する。これがデータベースとの通信窓口になる。
 const prisma = new PrismaClient({
-  // log: ['query'] は、実行されたSQLクエリをコンソールに表示する設定じゃ。
-  // どんな風にデータベースと対話しているかが見えて、とても勉強になるぞ。
+  // クエリが実行されたときに実際に実行したクエリをログに表示する設定
   log: ["query"],
 });
 
-// データベース操作は非同期で行うので、async functionの中で処理をまとめる。
-async function main() {
-  console.log("Prisma Client を初期化しました。");
+const app = express();
+// 環境変数が設定されていれば、そこからポート番号を取得する。環境変数に設定がなければ 8888 を使用する。
+const PORT = process.env.PORT || 8888;
 
-  // まず、現在のすべてのユーザーを取得して表示してみる。
-  let users = await prisma.user.findMany();
-  console.log("Before ユーザー一覧:", users);
+// EJS をテンプレートエンジンとして設定する。
+// これで、HTMLの中にデータを埋め込めるようになるぞ。
+app.set("view engine", "ejs");
+// EJSのテンプレートファイル（.ejs）が置いてある場所を 'views' フォルダに指定する。
+app.set("views", "./views");
 
-  // 新しいユーザーを一人追加する。
-  const newUser = await prisma.user.create({
-    data: {
-      // 実行するたびに違う名前になるように、現在時刻を入れてみる。
-      name: `新しいユーザー ${new Date().toISOString()}`,
-    },
-  });
-  console.log("新しいユーザーを追加しました:", newUser);
+// HTMLのフォームから送信されたデータを受け取れるようにするための設定じゃ。
+app.use(express.urlencoded({ extended: true }));
 
-  // 追加後、もう一度すべてのユーザーを取得して表示する。
-  users = await prisma.user.findMany();
-  console.log("After ユーザー一覧:", users);
-}
+// ルートURL ('/') にアクセスが来たときの処理
+app.get("/", async (req, res) => {
+  // データベースからすべてのユーザーを取得する
+  const users = await prisma.user.findMany();
+  // 'index.ejs' というテンプレートファイルに、取得した 'users' のデータを渡して、HTMLを生成し、ブラウザに送り返す。
+  res.render("index", { users });
+});
 
-// main関数を実行する。
-main()
-  .catch((e) => {
-    // もし途中でエラーが起きたら、内容を表示して異常終了する。
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    // 最終的に、成功しても失敗しても、必ずデータベースとの接続を切断する。
-    // これはお作法のようなものじゃな。
-    await prisma.$disconnect();
-    console.log("Prisma Client を切断しました。");
-  });
+// '/users' というURLに、フォームからデータが送られてきたとき(POST)の処理
+app.post("/users", async (req, res) => {
+  // フォームの 'name' という入力欄から、送信された名前を取得する
+  const name = req.body.name;
+  if (name) {
+    // もし名前がちゃんと入力されていたら、データベースに新しいユーザーとして追加する
+    const newUser = await prisma.user.create({
+      data: { name },
+    });
+    console.log("新しいユーザーを追加しました:", newUser);
+  }
+  // 処理が終わったら、トップページ('/')にリダイレクト（自動でページを移動）させる
+  res.redirect("/");
+});
+
+// 設定したポート番号でサーバーを起動する
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
